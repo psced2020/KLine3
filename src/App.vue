@@ -101,6 +101,7 @@ interface StockDataItem {
 const stockCode = ref('600519')
 const stockName = ref('')
 const currentDate = ref('')
+const trainingDate = ref('')
 const currentPeriod = ref('日K')
 const trainingBars = ref(200)
 
@@ -236,7 +237,14 @@ function updateIndicators() {
   ma60.value = calculateMA(stockData.value, 60, idx)
 
   const kdjData = calculateKDJ(stockData.value)
-  kdj.value = kdjData
+  // 获取当前索引的 KDJ 值
+  if (idx < kdjData.K.length) {
+    kdj.value = {
+      K: kdjData.K[idx],
+      D: kdjData.D[idx],
+      J: kdjData.J[idx]
+    }
+  }
 
   if (idx > 0 && stockData.value[idx]) {
     const avgVolume = stockData.value.slice(Math.max(0, idx - 5), idx)
@@ -398,7 +406,7 @@ function handleWatch() {
   console.log('观望')
   if (currentIndex.value < stockData.value.length - 1) {
     currentIndex.value++
-    remainingBars.value = stockData.value.length - currentIndex.value
+    remainingBars.value = stockData.value.length - currentIndex.value - 1
     trainingDate.value = stockData.value[currentIndex.value].date
     updateIndicators()
   }

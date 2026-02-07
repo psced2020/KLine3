@@ -7,8 +7,6 @@
         <div class="subtitle">{{ status }}</div>
       </div>
     </div>
-    <div class="header-right">
-    </div>
   </div>
 </template>
 
@@ -54,30 +52,5 @@ defineProps<Props>()
 .subtitle {
   font-size: 12px;
   opacity: 0.9;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-}
-
-.header-info {
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.info-label {
-  opacity: 0.9;
-}
-
-.info-value {
-  font-weight: 600;
 }
 </style>
