@@ -5,23 +5,47 @@
     />
 
     <div class="settings-panel">
-      <div class="input-row">
-        <label>股票代码:</label>
-        <input v-model="stockCode" placeholder="例如: 600519" />
+      <!-- 股票代码设置区 -->
+      <div class="stock-code-section">
+        <div class="section-label">股票代码</div>
+        <div class="stock-code-input">
+          <input v-model="stockCode" placeholder="600519" />
+          <div class="nav-buttons">
+            <button class="nav-btn" @click="navigateStock('prev')" :disabled="!hasPrevStock">上一条</button>
+            <button class="nav-btn" @click="navigateStock('next')" :disabled="!hasNextStock">下一条</button>
+            <button class="nav-btn" @click="navigateStock('random')">随机</button>
+          </div>
+        </div>
       </div>
-      <div class="input-row">
-        <label>开始日期:</label>
-        <input type="date" v-model="startDate" />
+
+      <!-- 训练K线选择区 -->
+      <div class="training-bars-section">
+        <div class="section-label">训练K线</div>
+        <div class="radio-buttons">
+          <button
+            v-for="bars in [200, 400, 600]"
+            :key="bars"
+            class="radio-btn"
+            :class="{ active: trainingBars === bars }"
+            @click="selectTrainingBars(bars)"
+          >
+            {{ bars }}
+          </button>
+        </div>
       </div>
-      <button class="load-btn" @click="loadStockData()" :disabled="loading">
-        {{ loading ? '加载中...' : '加载数据' }}
+
+      <!-- 加载数据按钮 -->
+      <button class="load-button" @click="loadStockData()" :disabled="loading">
+        加载数据
       </button>
-      <p class="hint">加载开始日期前500根历史数据 + 之后的所有K线</p>
-      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+
+      <!-- 隐藏数据说明 -->
+      <div class="hint-text">选择{{ trainingBars }}根K线训练，显示之前数据</div>
+      <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
     </div>
 
     <StockData
-      v-if="stockData.length > 0"
+      v-if="stockData.length > 0 && currentData"
       :data="currentData"
       :ma10="ma10"
       :ma20="ma20"
@@ -75,18 +99,33 @@ interface StockDataItem {
 
 // 设置
 const stockCode = ref('600519')
-const apiToken = ref('2b7204344e061fb9bc01c82fd69620c9cdef75fb84ce41dfd2380b5f')
 const stockName = ref('')
 const currentDate = ref('')
 const currentPeriod = ref('日K')
-const trainingDate = ref('')
+const trainingBars = ref(200)
+
+// 股票列表和导航
+const stockList = ref<string[]>([])
+const currentStockIndex = ref(-1)
+
+// 计算是否有上一条/下一条（基于当前股票代码在列表中的位置）
+const hasPrevStock = computed(() => {
+  if (stockList.value.length === 0) return false
+  const idx = stockList.value.indexOf(stockCode.value)
+  return idx > 0
+})
+
+const hasNextStock = computed(() => {
+  if (stockList.value.length === 0) return false
+  const idx = stockList.value.indexOf(stockCode.value)
+  return idx >= 0 && idx < stockList.value.length - 1
+})
 
 // 星期数组
 const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
 
 // 获取日期的星期几
 function getWeekDay(dateStr: string): string {
-  // 将 YYYYMMDD 格式转换为 YYYY-MM-DD
   const formattedDate = dateStr.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')
   const date = new Date(formattedDate)
   return weekDays[date.getDay()]
@@ -101,12 +140,6 @@ const formattedCurrentDate = computed(() => {
 // 本地存储所有周期的数据
 const allPeriodData = ref<Record<string, StockDataItem[]>>({})
 
-// 默认开始日期
-const today = new Date()
-const defaultStart = new Date(today)
-defaultStart.setDate(today.getDate() - 150)
-const startDate = ref(defaultStart.toISOString().split('T')[0])
-const trainingDays = ref(100)
 const loading = ref(false)
 const errorMessage = ref('')
 
@@ -114,7 +147,12 @@ const errorMessage = ref('')
 const stockData = ref<StockDataItem[]>([])
 const currentIndex = ref(0)
 
-const currentData = computed(() => stockData.value[currentIndex.value])
+const currentData = computed(() => {
+  if (stockData.value.length === 0 || currentIndex.value < 0 || currentIndex.value >= stockData.value.length) {
+    return undefined
+  }
+  return stockData.value[currentIndex.value]
+})
 
 // 指标
 const ma10 = ref(0)
@@ -125,7 +163,6 @@ const volumeRatio = ref(0)
 const turnoverRate = ref(0)
 
 // 状态
-const elapsedTime = ref('5秒')
 const remainingBars = ref(0)
 
 // 交易统计
@@ -156,37 +193,41 @@ function calculateMA(data: StockDataItem[], dayCount: number, index: number): nu
 }
 
 // 计算KDJ
-function calculateKDJ(data: StockDataItem[], index: number) {
+function calculateKDJ(data: StockDataItem[]) {
+  const K: number[] = []
+  const D: number[] = []
+  const J: number[] = []
   const n = 9
-  let high = -Infinity
-  let low = Infinity
-  const startIndex = Math.max(0, index - n + 1)
 
-  for (let i = startIndex; i <= index; i++) {
-    high = Math.max(high, data[i].high)
-    low = Math.min(low, data[i].low)
+  for (let i = 0; i < data.length; i++) {
+    let high = -Infinity
+    let low = Infinity
+    const startIndex = Math.max(0, i - n + 1)
+
+    for (let j = startIndex; j <= i; j++) {
+      high = Math.max(high, data[j].high)
+      low = Math.min(low, data[j].low)
+    }
+
+    const RSV = high === low ? 50 : ((data[i].close - low) / (high - low)) * 100
+
+    if (i === 0) {
+      K.push(RSV / 3 + 50)
+      D.push(RSV / 3 + 50)
+    } else {
+      K.push(RSV / 3 + K[i - 1] * (2 / 3))
+      D.push(K[i] / 3 + D[i - 1] * (2 / 3))
+    }
+
+    J.push(3 * K[i] - 2 * D[i])
   }
-
-  const RSV = high === low ? 50 : ((data[index].close - low) / (high - low)) * 100
-
-  let K, D
-  if (index === 0) {
-    K = RSV / 3 + 50
-    D = RSV / 3 + 50
-  } else {
-    const prevKDJ = calculateKDJ(data, index - 1)
-    K = RSV / 3 + prevKDJ.K * (2 / 3)
-    D = K / 3 + prevKDJ.D * (2 / 3)
-  }
-
-  const J = 3 * K - 2 * D
 
   return { K, D, J }
 }
 
 // 更新当前数据指标
 function updateIndicators() {
-  if (!stockData.value.length || currentIndex.value >= stockData.value.length) return
+  if (!stockData.value.length || currentIndex.value < 0 || currentIndex.value >= stockData.value.length) return
 
   const idx = currentIndex.value
 
@@ -194,10 +235,10 @@ function updateIndicators() {
   ma20.value = calculateMA(stockData.value, 20, idx)
   ma60.value = calculateMA(stockData.value, 60, idx)
 
-  const kdjData = calculateKDJ(stockData.value, idx)
+  const kdjData = calculateKDJ(stockData.value)
   kdj.value = kdjData
 
-  if (idx > 0) {
+  if (idx > 0 && stockData.value[idx]) {
     const avgVolume = stockData.value.slice(Math.max(0, idx - 5), idx)
       .reduce((sum, d) => sum + d.volume, 0) / Math.min(5, idx)
     volumeRatio.value = avgVolume > 0 ? stockData.value[idx].volume / avgVolume : 0
@@ -205,43 +246,68 @@ function updateIndicators() {
   }
 }
 
-// 加载股票数据（使用 Tushare Pro API + 代理）
+// 选择训练K线数量
+function selectTrainingBars(bars: number) {
+  trainingBars.value = bars
+}
+
+// 加载股票列表
+async function loadStockList() {
+  try {
+    const response = await fetch('http://localhost:3001/api/stocks')
+    if (!response.ok) {
+      throw new Error('获取股票列表失败')
+    }
+    const result = await response.json()
+    if (result.success && result.data) {
+      stockList.value = result.data.map((item: any) => item.code)
+      console.log('股票列表加载成功，共', stockList.value.length, '只股票')
+    }
+  } catch (error: any) {
+    console.error('加载股票列表失败:', error.message)
+  }
+}
+
+// 股票导航
+function navigateStock(direction: 'prev' | 'next' | 'random') {
+  if (stockList.value.length === 0) {
+    alert('股票列表未加载，请稍后再试')
+    return
+  }
+
+  // 获取当前股票在列表中的位置
+  const idx = stockList.value.indexOf(stockCode.value)
+
+  if (direction === 'prev') {
+    if (idx > 0) {
+      currentStockIndex.value = idx - 1
+      stockCode.value = stockList.value[currentStockIndex.value]
+      loadStockData()
+    }
+  } else if (direction === 'next') {
+    if (idx < stockList.value.length - 1) {
+      currentStockIndex.value = idx + 1
+      stockCode.value = stockList.value[currentStockIndex.value]
+      loadStockData()
+    }
+  } else if (direction === 'random') {
+    const randomIndex = Math.floor(Math.random() * stockList.value.length)
+    currentStockIndex.value = randomIndex
+    stockCode.value = stockList.value[randomIndex]
+    loadStockData()
+  }
+}
+
+// 加载股票数据（使用本地数据源）
 async function loadStockData() {
-  console.log('loadStockData 被调用，开始日期:', startDate.value)
+  console.log('loadStockData 被调用，股票代码:', stockCode.value, '训练K线数:', trainingBars.value)
 
   loading.value = true
   errorMessage.value = ''
 
   try {
-    // 格式化股票代码为 Tushare 格式 (600519 -> 600519.SH)
-    const tsCode = stockCode.value.padStart(6, '0') + '.SH'
-
-    // 计算日期范围: 从开始日期往前700天，到今天
-    const start = new Date(startDate.value)
-    start.setDate(start.getDate() - 700)
-    const startDateStr = formatDate(start)
-    const today = new Date()
-    const endDateStr = formatDate(today)
-
-    console.log('请求 Tushare Pro（通过代理）:', tsCode, '日期范围:', startDateStr, '到', endDateStr)
-
-    // 使用代理请求 Tushare Pro (使用 daily 接口)
-    const response = await fetch('/tushare/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        api_name: 'daily',
-        token: apiToken.value,
-        params: {
-          ts_code: tsCode,
-          start_date: startDateStr.replace(/-/g, ''),
-          end_date: endDateStr.replace(/-/g, '')
-        },
-        fields: 'trade_date,open,high,low,close,vol'
-      })
-    })
+    // 从本地服务器获取数据
+    const response = await fetch(`http://localhost:3001/api/stock?code=${stockCode.value}`)
 
     if (!response.ok) {
       throw new Error('获取数据失败')
@@ -249,48 +315,20 @@ async function loadStockData() {
 
     const result = await response.json()
 
-    console.log('Tushare Pro 响应:', result)
+    console.log('本地数据响应:', result)
 
-    if (result.code !== 0) {
-      throw new Error(result.msg || '获取数据失败')
+    if (!result.success || !result.data) {
+      throw new Error(result.error || '未获取到股票数据')
     }
 
-    // Tushare Pro 返回格式: { code: 0, data: { items: [数组] } }
-    const items = result.data?.items || []
-    console.log('原始数据项数量:', items.length)
-    if (items.length > 0) {
-      console.log('第一条数据:', items[0])
-      console.log('第一条数据的字段:', Object.keys(items[0]))
-    }
-
-    // Tushare Pro 返回的是数组格式: [日期, 开盘, 最高, 最低, 收盘, 成交量]
-    // 转换为我们的数组格式，过滤掉无效数据
-    const data: StockDataItem[] = items
-      .map((item: any) => {
-        if (Array.isArray(item)) {
-          return {
-            date: item[0],
-            open: parseFloat(item[1]) || 0,
-            high: parseFloat(item[2]) || 0,
-            low: parseFloat(item[3]) || 0,
-            close: parseFloat(item[4]) || 0,
-            volume: parseFloat(item[5]) || 0
-          }
-        }
-        return null
-      })
-      .filter((item): item is StockDataItem => item !== null && item.date && item.close > 0)  // 过滤掉没有日期或收盘价为0的数据
-
-    console.log('Tushare Pro 返回数据条数:', data.length)
+    const data: StockDataItem[] = result.data
+    console.log('本地数据条数:', data.length)
 
     if (data.length === 0) {
-      console.log('所有数据被过滤，可能是字段名不匹配')
       throw new Error('未获取到股票数据')
     }
 
-    // 按日期排序
-    data.sort((a, b) => a.date.localeCompare(b.date))
-
+    // 数据已经是按日期排序的
     allPeriodData.value = {
       '日K': data,
       '周K': [],
@@ -299,28 +337,19 @@ async function loadStockData() {
 
     stockData.value = data
 
-    // 将开始日期转换为 YYYYMMDD 格式用于比较
-    const startDateFormatted = startDate.value.replace(/-/g, '')
+    // 根据训练K线数量计算显示位置
+    const totalBars = data.length
+    const trainCount = trainingBars.value
 
-    // 在数据中找到开始日期对应的索引位置
-    let startIndex = data.findIndex((item) => item.date === startDateFormatted)
-    if (startIndex === -1) {
-      for (let i = 0; i < data.length; i++) {
-        if (data[i].date >= startDateFormatted) {
-          startIndex = i
-          break
-        }
-      }
+    if (totalBars <= trainCount) {
+      // 数据不足，所有K线都用于训练，初始界面为空
+      currentIndex.value = 0
+      console.log('数据不足，所有K线都用于训练，初始界面为空')
+    } else {
+      // 显示训练数据之前的最后一根K线
+      currentIndex.value = totalBars - trainCount - 1
+      console.log('设置初始位置:', currentIndex.value)
     }
-
-    console.log('开始日期:', startDate.value, '格式化后:', startDateFormatted, '对应索引:', startIndex)
-
-    // 计算历史数据的结束位置
-    const historyEndIndex = Math.min(startIndex, data.length - 1)
-
-    // 初始显示到历史数据的最后位置
-    currentIndex.value = historyEndIndex
-    console.log('设置初始位置:', historyEndIndex)
 
     // 更新训练日期
     if (currentIndex.value >= 0 && currentIndex.value < data.length) {
@@ -329,8 +358,19 @@ async function loadStockData() {
 
     remainingBars.value = data.length - currentIndex.value - 1
 
-    // 使用股票代码代替股票名称
-    stockName.value = stockCode.value
+    // 从股票信息中提取股票名称
+    if (result.stockName) {
+      const parts = result.stockName.split(/\s+/)
+      stockName.value = parts.length >= 2 ? parts[1] : stockCode.value
+    } else {
+      stockName.value = stockCode.value
+    }
+
+    // 更新当前股票在列表中的索引
+    const stockIndex = stockList.value.indexOf(stockCode.value)
+    if (stockIndex !== -1) {
+      currentStockIndex.value = stockIndex
+    }
 
     // 重置交易统计
     tradeStats.value = {
@@ -347,7 +387,7 @@ async function loadStockData() {
     console.log('数据加载完成，总条数:', data.length)
   } catch (error: any) {
     console.error('加载失败:', error)
-    errorMessage.value = '加载失败: ' + (error.message || '请检查网络连接')
+    errorMessage.value = '加载失败: ' + (error.message || '请检查本地服务器是否运行')
   } finally {
     loading.value = false
   }
@@ -414,8 +454,10 @@ function calculateReturns() {
 
 // 监听价格变化，更新收益率
 watch(currentData, () => {
-  calculateReturns()
-  currentDate.value = currentData.value?.date || ''
+  if (currentData.value) {
+    calculateReturns()
+    currentDate.value = currentData.value.date
+  }
 })
 
 // 监听股票代码变化，清空缓存
@@ -426,12 +468,19 @@ watch(stockCode, () => {
   stockData.value = []
 })
 
-// 时间计时
+// 时间计时（秒数）
+const elapsedSeconds = ref(5)
+
+// 格式化显示的计时文本
+const elapsedTime = computed(() => `${elapsedSeconds.value}秒`)
+
 let timer: number | null = null
 onMounted(() => {
+  // 加载股票列表
+  loadStockList()
+
   timer = window.setInterval(() => {
-    const seconds = parseInt(elapsedTime.value) || 5
-    elapsedTime.value = `${seconds + 1}秒`
+    elapsedSeconds.value++
   }, 1000)
 })
 
@@ -458,28 +507,98 @@ onUnmounted(() => {
   border-bottom: 1px solid #eee;
 }
 
-.input-row {
+.stock-code-section {
+  margin-bottom: 15px;
+}
+
+.section-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.stock-code-input {
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: center;
+  width: 120px;
+}
+
+.nav-buttons {
   display: flex;
-  align-items: center;
-  margin-bottom: 12px;
   gap: 10px;
 }
 
-.input-row label {
-  width: 90px;
+.nav-btn {
+  padding: 6px 14px;
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #e0e0e0;
+  border-color: #ccc;
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.radio-buttons {
+  display: flex;
+  gap: 20px;
+}
+
+.radio-btn {
+  padding: 6px 16px;
+  border-radius: 12px;
   font-size: 14px;
   color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.input-row input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+.radio-btn.active {
+  background: var(--primary-purple);
+  color: #fff;
+}
+
+.radio-btn:hover:not(.active) {
+  background: #f0f0f0;
+}
+
+.radio-btn.active:hover {
+  background: var(--dark-purple);
+}
+
+.training-bars-section {
+  margin-bottom: 15px;
+}
+
+.section-label {
   font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
 }
 
-.load-btn {
+.hint-text {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #999;
+  text-align: center;
+}
+
+.load-button {
   width: 100%;
   padding: 12px;
   background: var(--primary-purple);
@@ -493,23 +612,16 @@ onUnmounted(() => {
   transition: background 0.2s;
 }
 
-.load-btn:hover:not(:disabled) {
+.load-button:hover:not(:disabled) {
   background: var(--dark-purple);
 }
 
-.load-btn:disabled {
+.load-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.hint {
-  margin: 12px 0 0;
-  font-size: 13px;
-  color: #999;
-  text-align: center;
-}
-
-.error {
+.error-message {
   margin: 12px 0 0;
   font-size: 14px;
   color: var(--price-red);
