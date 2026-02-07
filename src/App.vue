@@ -7,12 +7,20 @@
     <div class="settings-panel">
       <!-- 股票代码设置区 -->
       <div class="stock-code-section">
-        <div class="section-label">股票代码</div>
-        <div class="stock-code-input">
+        <div class="stock-code-row">
+          <div class="section-label">股票代码：</div>
           <input v-model="stockCode" placeholder="600519" />
           <div class="nav-buttons">
-            <button class="nav-btn" @click="navigateStock('prev')" :disabled="!hasPrevStock">上一条</button>
-            <button class="nav-btn" @click="navigateStock('next')" :disabled="!hasNextStock">下一条</button>
+            <button class="nav-btn" @click="navigateStock('prev')" :disabled="!hasPrevStock" title="上一条">
+              <svg class="nav-icon" viewBox="0 0 24 24">
+                <path d="M12 4l-8 8h6v8h4v-8h6l-8-8z" fill="currentColor"/>
+              </svg>
+            </button>
+            <button class="nav-btn" @click="navigateStock('next')" :disabled="!hasNextStock" title="下一条">
+              <svg class="nav-icon" viewBox="0 0 24 24">
+                <path d="M12 20l8-8h-6v-8h-4v8h-6l8 8z" fill="currentColor"/>
+              </svg>
+            </button>
             <button class="nav-btn" @click="navigateStock('random')">随机</button>
           </div>
         </div>
@@ -20,17 +28,29 @@
 
       <!-- 训练K线选择区 -->
       <div class="training-bars-section">
-        <div class="section-label">训练K线</div>
-        <div class="radio-buttons">
-          <button
-            v-for="bars in [200, 400, 600]"
-            :key="bars"
-            class="radio-btn"
-            :class="{ active: trainingBars === bars }"
-            @click="selectTrainingBars(bars)"
-          >
-            {{ bars }}
-          </button>
+        <div class="training-bars-row">
+          <div class="section-label">训练K线：</div>
+          <div class="training-bars-controls">
+            <div class="radio-buttons">
+              <button
+                v-for="bars in [200, 400]"
+                :key="bars"
+                class="radio-btn"
+                :class="{ active: trainingBars === bars }"
+                @click="selectTrainingBars(bars)"
+              >
+                {{ bars }}
+              </button>
+            </div>
+            <input
+              v-model="customTrainingBars"
+              type="number"
+              min="1"
+              class="custom-input"
+              placeholder="自定义"
+              @input="handleCustomInput"
+            />
+          </div>
         </div>
       </div>
 
@@ -104,6 +124,7 @@ const currentDate = ref('')
 const trainingDate = ref('')
 const currentPeriod = ref('日K')
 const trainingBars = ref(200)
+const customTrainingBars = ref('')
 
 // 股票列表和导航
 const stockList = ref<string[]>([])
@@ -257,6 +278,15 @@ function updateIndicators() {
 // 选择训练K线数量
 function selectTrainingBars(bars: number) {
   trainingBars.value = bars
+  customTrainingBars.value = ''
+}
+
+// 处理自定义训练K线输入
+function handleCustomInput() {
+  const value = parseInt(customTrainingBars.value)
+  if (value > 0 && !isNaN(value)) {
+    trainingBars.value = value
+  }
 }
 
 // 加载股票列表
@@ -522,26 +552,36 @@ onUnmounted(() => {
 .section-label {
   font-size: 14px;
   color: #666;
-  margin-bottom: 8px;
 }
 
-.stock-code-input {
-  padding: 6px 14px;
+.stock-code-section .section-label,
+.training-bars-section .section-label {
+  margin-bottom: 0;
+}
+
+.stock-code-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.stock-code-row input {
+  padding: 8px 12px;
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 14px;
   text-align: center;
-  width: 120px;
+  width: 100px;
 }
 
 .nav-buttons {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .nav-btn {
-  padding: 6px 14px;
+  padding: 8px 12px;
   background: #f5f5f5;
   color: #666;
   border: 1px solid #ddd;
@@ -550,6 +590,18 @@ onUnmounted(() => {
   white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-btn:has(.nav-icon) {
+  padding: 8px;
 }
 
 .nav-btn:hover:not(:disabled) {
@@ -565,6 +617,27 @@ onUnmounted(() => {
 .radio-buttons {
   display: flex;
   gap: 20px;
+}
+
+.training-bars-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.custom-input {
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: center;
+  width: 80px;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: var(--primary-purple);
 }
 
 .radio-btn {
@@ -591,6 +664,12 @@ onUnmounted(() => {
 
 .training-bars-section {
   margin-bottom: 15px;
+}
+
+.training-bars-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .section-label {
