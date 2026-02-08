@@ -396,6 +396,9 @@ async function loadStockData() {
 
     remainingBars.value = data.length - currentIndex.value - 1
 
+    // 更新当前数据的指标
+    updateIndicators()
+
     // 从股票信息中提取股票名称
     if (result.stockName) {
       const parts = result.stockName.split(/\s+/)
@@ -420,7 +423,7 @@ async function loadStockData() {
     }
 
     // 重置计时
-    elapsedTime.value = '5秒'
+    elapsedSeconds.value = 5
 
     console.log('数据加载完成，总条数:', data.length)
   } catch (error: any) {
@@ -490,11 +493,12 @@ function calculateReturns() {
   }
 }
 
-// 监听价格变化，更新收益率
+// 监听价格变化，更新收益率和指标
 watch(currentData, () => {
   if (currentData.value) {
     calculateReturns()
     currentDate.value = currentData.value.date
+    updateIndicators()
   }
 })
 

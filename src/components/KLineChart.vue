@@ -113,6 +113,7 @@ function renderChart() {
 
   const { K, D, J } = calculateKDJ(displayData)
   const ma20 = calculateMA(displayData, 20)
+  const ma60 = calculateMA(displayData, 60)
 
   // 计算默认显示最近60根K线，如果数据量少于60则显示全部
   const defaultVisibleCount = 60
@@ -213,6 +214,14 @@ function renderChart() {
         smooth: true,
         showSymbol: false,
         lineStyle: { color: '#2196F3', width: 1.5 }
+      },
+      {
+        name: 'MA60',
+        type: 'line',
+        data: ma60,
+        smooth: true,
+        showSymbol: false,
+        lineStyle: { color: '#9C27B0', width: 1.5 }
       },
       {
         name: '成交量',
