@@ -284,15 +284,13 @@ function handleCustomInput() {
 // 加载股票列表
 async function loadStockList() {
   try {
-    const response = await fetch('http://localhost:3001/api/stocks')
+    const response = await fetch('/export/stocks.json')
     if (!response.ok) {
       throw new Error('获取股票列表失败')
     }
-    const result = await response.json()
-    if (result.success && result.data) {
-      stockList.value = result.data.map((item: any) => item.code)
-      console.log('股票列表加载成功，共', stockList.value.length, '只股票')
-    }
+    const stocks = await response.json()
+    stockList.value = stocks.map((item: any) => item.code)
+    console.log('股票列表加载成功，共', stockList.value.length, '只股票')
   } catch (error: any) {
     console.error('加载股票列表失败:', error.message)
   }
@@ -336,22 +334,26 @@ async function loadStockData() {
   errorMessage.value = ''
 
   try {
-    // 从本地服务器获取数据
-    const response = await fetch(`http://localhost:3001/api/stock?code=${stockCode.value}`)
+    // 从本地 JSON 文件获取数据
+    const response = await fetch(`/export/${stockCode.value}.json`)
 
     if (!response.ok) {
       throw new Error('获取数据失败')
     }
 
-    const result = await response.json()
+    const jsonData = await response.json()
 
-    console.log('本地数据响应:', result)
+    console.log('本地数据响应:', jsonData)
 
-    if (!result.success || !result.data) {
-      throw new Error(result.error || '未获取到股票数据')
-    }
-
-    const data: StockDataItem[] = result.data
+    // 转换数据格式: 紧凑数组 → 对象
+    const data: StockDataItem[] = jsonData.data.map((item: any[]) => ({
+      date: item[0],
+      open: item[1],
+      high: item[2],
+      low: item[3],
+      close: item[4],
+      volume: item[5]
+    }))
     console.log('本地数据条数:', data.length)
 
     if (data.length === 0) {
@@ -392,9 +394,8 @@ async function loadStockData() {
     updateIndicators()
 
     // 从股票信息中提取股票名称
-    if (result.stockName) {
-      const parts = result.stockName.split(/\s+/)
-      stockName.value = parts.length >= 2 ? parts[1] : stockCode.value
+    if (jsonData.name) {
+      stockName.value = jsonData.name
     } else {
       stockName.value = stockCode.value
     }
