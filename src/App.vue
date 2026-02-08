@@ -147,8 +147,9 @@ function getWeekDay(dateStr: string): string {
 
 // 带星期的日期格式
 const formattedCurrentDate = computed(() => {
-  if (!currentDate.value) return ''
-  return `${currentDate.value} ${getWeekDay(currentDate.value)}`
+  if (!currentData.value) return ''
+  const displayDate = currentData.value.date
+  return `${displayDate} ${getWeekDay(displayDate)}`
 })
 
 // 本地存储所有周期的数据
@@ -326,6 +327,94 @@ function navigateStock(direction: 'prev' | 'next' | 'random') {
   }
 }
 
+// 将日K数据转换为周K数据
+function convertToWeeklyData(dailyData: StockDataItem[]): StockDataItem[] {
+  const weeklyData: StockDataItem[] = []
+  let currentWeek: StockDataItem[] = []
+  let lastWeekNum = 0
+
+  dailyData.forEach((item) => {
+    const date = new Date(
+      parseInt(item.date.substring(0, 4)),
+      parseInt(item.date.substring(4, 6)) - 1,
+      parseInt(item.date.substring(6, 8))
+    )
+    const weekNum = getWeekNumber(date)
+
+    if (weekNum !== lastWeekNum && currentWeek.length > 0) {
+      // 合并一周的数据
+      weeklyData.push(mergeWeekData(currentWeek))
+      currentWeek = []
+    }
+
+    currentWeek.push(item)
+    lastWeekNum = weekNum
+  })
+
+  // 添加最后一周的数据
+  if (currentWeek.length > 0) {
+    weeklyData.push(mergeWeekData(currentWeek))
+  }
+
+  return weeklyData
+}
+
+// 合并一周的数据
+function mergeWeekData(weekData: StockDataItem[]): StockDataItem {
+  return {
+    date: weekData[weekData.length - 1].date, // 使用周五的日期
+    open: weekData[0].open, // 周一开盘
+    high: Math.max(...weekData.map(d => d.high)), // 本周最高
+    low: Math.min(...weekData.map(d => d.low)), // 本周最低
+    close: weekData[weekData.length - 1].close, // 周五收盘
+    volume: weekData.reduce((sum, d) => sum + d.volume, 0) // 本周总成交量
+  }
+}
+
+// 将日K数据转换为月K数据
+function convertToMonthlyData(dailyData: StockDataItem[]): StockDataItem[] {
+  const monthlyData: StockDataItem[] = []
+  let currentMonth: StockDataItem[] = []
+  let lastMonthKey = ''
+
+  dailyData.forEach((item) => {
+    const monthKey = item.date.substring(0, 6) // YYYYMM
+
+    if (monthKey !== lastMonthKey && currentMonth.length > 0) {
+      monthlyData.push(mergeMonthData(currentMonth))
+      currentMonth = []
+    }
+
+    currentMonth.push(item)
+    lastMonthKey = monthKey
+  })
+
+  // 添加最后一月的数据
+  if (currentMonth.length > 0) {
+    monthlyData.push(mergeMonthData(currentMonth))
+  }
+
+  return monthlyData
+}
+
+// 合并一月的数据
+function mergeMonthData(monthData: StockDataItem[]): StockDataItem {
+  return {
+    date: monthData[monthData.length - 1].date, // 使用月末的日期
+    open: monthData[0].open, // 月初开盘
+    high: Math.max(...monthData.map(d => d.high)), // 本月最高
+    low: Math.min(...monthData.map(d => d.low)), // 本月最低
+    close: monthData[monthData.length - 1].close, // 月末收盘
+    volume: monthData.reduce((sum, d) => sum + d.volume, 0) // 本月总成交量
+  }
+}
+
+// 获取日期所在的周数
+function getWeekNumber(date: Date): number {
+  const onejan = new Date(date.getFullYear(), 0, 1)
+  return Math.ceil((((date.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7)
+}
+
 // 加载股票数据（使用本地数据源）
 async function loadStockData() {
   console.log('loadStockData 被调用，股票代码:', stockCode.value, '训练K线数:', trainingBars.value)
@@ -363,14 +452,15 @@ async function loadStockData() {
     // 数据已经是按日期排序的
     allPeriodData.value = {
       '日K': data,
-      '周K': [],
-      '月K': []
+      '周K': convertToWeeklyData(data),
+      '月K': convertToMonthlyData(data)
     }
 
-    stockData.value = data
+    stockData.value = allPeriodData.value[currentPeriod.value]
 
-    // 根据训练K线数量计算显示位置
-    const totalBars = data.length
+    // 根据训练K线数量计算显示位置（使用当前周期数据的长度）
+    const currentPeriodData = allPeriodData.value[currentPeriod.value]
+    const totalBars = currentPeriodData.length
     const trainCount = trainingBars.value
 
     if (totalBars <= trainCount) {
@@ -384,11 +474,11 @@ async function loadStockData() {
     }
 
     // 更新训练日期
-    if (currentIndex.value >= 0 && currentIndex.value < data.length) {
-      trainingDate.value = data[currentIndex.value].date
+    if (currentIndex.value >= 0 && currentIndex.value < totalBars) {
+      trainingDate.value = currentPeriodData[currentIndex.value].date
     }
 
-    remainingBars.value = data.length - currentIndex.value - 1
+    remainingBars.value = totalBars - currentIndex.value - 1
 
     // 更新当前数据的指标
     updateIndicators()
@@ -441,11 +531,20 @@ function handleWatch() {
 function handlePeriodChange(period: string) {
   console.log('切换周期:', period, '当前训练日期:', trainingDate.value)
   if (currentPeriod.value !== period) {
-    if (period !== '日K') {
-      console.log('周K和月K暂未实现')
-      return
-    }
     currentPeriod.value = period
+    // 切换到对应周期的数据
+    const newData = allPeriodData.value[period]
+    if (newData && newData.length > 0) {
+      stockData.value = newData
+      // 重置到新周期数据的开头
+      currentIndex.value = Math.max(0, newData.length - trainingBars.value - 1)
+      // 更新训练日期
+      if (currentIndex.value >= 0 && currentIndex.value < newData.length) {
+        trainingDate.value = newData[currentIndex.value].date
+      }
+      remainingBars.value = newData.length - currentIndex.value - 1
+      updateIndicators()
+    }
   }
 }
 
