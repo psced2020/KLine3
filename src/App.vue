@@ -181,7 +181,7 @@ const remainingBars = ref(0)
 
 // 交易统计
 const tradeStats = ref({
-  money: 200000,
+  money: 1000000,
   shares: 0,
   buyPrice: 0,
   currentReturn: 0,
@@ -407,7 +407,7 @@ async function loadStockData() {
 
     // 重置交易统计
     tradeStats.value = {
-      money: 200000,
+      money: 1000000,
       shares: 0,
       buyPrice: 0,
       currentReturn: 0,
@@ -475,7 +475,7 @@ function calculateReturns() {
   if (!currentData.value || currentData.value.close <= 0) return
 
   const totalValue = tradeStats.value.money + tradeStats.value.shares * currentData.value.close
-  const initialMoney = 200000
+  const initialMoney = 1000000
   tradeStats.value.currentReturn = ((totalValue - initialMoney) / initialMoney) * 100
 
   if (tradeStats.value.shares > 0 && tradeStats.value.buyPrice > 0) {

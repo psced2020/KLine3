@@ -2,7 +2,7 @@
   <div class="trade-stats">
     <div class="stats-row">
       <div class="stat-item">
-        <div class="stat-label">钱数</div>
+        <div class="stat-label">资金量</div>
         <div class="stat-value">{{ formatMoney(stats.money) }}</div>
       </div>
       <div class="stat-item">

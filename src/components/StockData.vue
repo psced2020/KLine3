@@ -30,12 +30,12 @@ interface StockData {
 
 interface Props {
   data: StockData
-  ma10: number
-  ma20: number
-  ma60: number
-  kdj: { K: number; D: number; J: number }
-  volumeRatio: number
-  turnoverRate: number
+  ma10?: number
+  ma20?: number
+  ma60?: number
+  kdj?: { K: number; D: number; J: number }
+  volumeRatio?: number
+  turnoverRate?: number
   stockName?: string
   stockDate?: string
 }
