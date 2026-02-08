@@ -30,6 +30,11 @@ interface StockData {
 interface Props {
   data: StockData[]
   currentIndex?: number
+  ma10?: number
+  ma20?: number
+  ma60?: number
+  volumeRatio?: number
+  turnoverRate?: number
 }
 
 const props = defineProps<Props>()
@@ -263,7 +268,141 @@ function renderChart() {
         showSymbol: false,
         lineStyle: { color: '#FF3D00', width: 1.5 }
       }
-    ]
+    ],
+    graphic: displayData.length > 0 ? (() => {
+      const current = displayData[displayData.length - 1]
+      const baseStyle = {
+        fontSize: 11,
+        fontWeight: 400
+      }
+      const labelStyle = {
+        fontSize: 11,
+        fontWeight: 400,
+        fill: '#999'
+      }
+      const valueStyle = {
+        fontSize: 12,
+        fontWeight: 600,
+        fill: '#333'
+      }
+
+      return [
+        {
+          type: 'text',
+          left: '10%',
+          top: '1%',
+          style: { ...baseStyle, ...labelStyle, text: '开盘' }
+        },
+        {
+          type: 'text',
+          left: '28%',
+          top: '1%',
+          style: { ...baseStyle, ...labelStyle, text: '最高' }
+        },
+        {
+          type: 'text',
+          left: '46%',
+          top: '1%',
+          style: { ...baseStyle, ...labelStyle, text: '最低' }
+        },
+        {
+          type: 'text',
+          left: '64%',
+          top: '1%',
+          style: { ...baseStyle, ...labelStyle, text: 'MA20' }
+        },
+        {
+          type: 'text',
+          left: '82%',
+          top: '1%',
+          style: { ...baseStyle, ...labelStyle, text: 'MA60' }
+        },
+        {
+          type: 'text',
+          left: '10%',
+          top: '4%',
+          style: { ...baseStyle, ...valueStyle, text: current?.open.toFixed(2) || '-' }
+        },
+        {
+          type: 'text',
+          left: '28%',
+          top: '4%',
+          style: { ...baseStyle, ...valueStyle, text: current?.high.toFixed(2) || '-' }
+        },
+        {
+          type: 'text',
+          left: '46%',
+          top: '4%',
+          style: { ...baseStyle, ...valueStyle, text: current?.low.toFixed(2) || '-' }
+        },
+        {
+          type: 'text',
+          left: '64%',
+          top: '4%',
+          style: { ...baseStyle, ...valueStyle, text: (props.ma20 || 0).toFixed(2) }
+        },
+        {
+          type: 'text',
+          left: '82%',
+          top: '4%',
+          style: { ...baseStyle, ...valueStyle, text: (props.ma60 || 0).toFixed(2) }
+        },
+        {
+          type: 'text',
+          left: '10%',
+          top: '52%',
+          style: { ...baseStyle, ...labelStyle, text: 'VOL' }
+        },
+        {
+          type: 'text',
+          left: '28%',
+          top: '52%',
+          style: { ...baseStyle, ...labelStyle, text: '换手' }
+        },
+        {
+          type: 'text',
+          left: '46%',
+          top: '52%',
+          style: { ...baseStyle, ...labelStyle, text: '量比' }
+        },
+        {
+          type: 'text',
+          left: '10%',
+          top: '55%',
+          style: { ...baseStyle, ...valueStyle, text: (current?.volume / 10000).toFixed(2) + '万' }
+        },
+        {
+          type: 'text',
+          left: '28%',
+          top: '55%',
+          style: { ...baseStyle, ...valueStyle, text: (props.turnoverRate || 0).toFixed(2) + '%' }
+        },
+        {
+          type: 'text',
+          left: '46%',
+          top: '55%',
+          style: { ...baseStyle, ...valueStyle, text: (props.volumeRatio || 0).toFixed(2) }
+        },
+        {
+          type: 'text',
+          left: '10%',
+          top: '72%',
+          style: { ...baseStyle, ...valueStyle, fill: '#2196F3', text: `K：${K[K.length - 1]?.toFixed(2) || '-'}` }
+        },
+        {
+          type: 'text',
+          left: '40%',
+          top: '72%',
+          style: { ...baseStyle, ...valueStyle, fill: '#FFC107', text: `D：${D[D.length - 1]?.toFixed(2) || '-'}` }
+        },
+        {
+          type: 'text',
+          left: '70%',
+          top: '72%',
+          style: { ...baseStyle, ...valueStyle, fill: '#FF3D00', text: `J：${J[J.length - 1]?.toFixed(2) || '-'}` }
+        }
+      ]
+    })() : undefined
   }
 
   // 使用 notMerge: false 来平滑更新，避免闪烁

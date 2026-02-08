@@ -1,9 +1,5 @@
 <template>
   <div class="app">
-    <HeaderBar
-      status="进行中"
-    />
-
     <div class="settings-panel">
       <!-- 股票代码设置区 -->
       <div class="stock-code-section">
@@ -59,20 +55,12 @@
         加载数据
       </button>
 
-      <!-- 隐藏数据说明 -->
-      <div class="hint-text">选择{{ trainingBars }}根K线训练，显示之前数据</div>
       <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
     </div>
 
     <StockData
       v-if="stockData.length > 0 && currentData"
       :data="currentData"
-      :ma10="ma10"
-      :ma20="ma20"
-      :ma60="ma60"
-      :kdj="kdj"
-      :volume-ratio="volumeRatio"
-      :turnover-rate="turnoverRate"
       :stock-name="stockName"
       :stock-date="formattedCurrentDate"
     />
@@ -81,6 +69,11 @@
       v-if="stockData.length > 0"
       :data="stockData"
       :current-index="currentIndex"
+      :ma10="ma10"
+      :ma20="ma20"
+      :ma60="ma60"
+      :volume-ratio="volumeRatio"
+      :turnover-rate="turnoverRate"
       @period-change="handlePeriodChange"
     />
 
@@ -102,7 +95,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import HeaderBar from './components/HeaderBar.vue'
 import StockData from './components/StockData.vue'
 import KLineChart from './components/KLineChart.vue'
 import TradeButtons from './components/TradeButtons.vue'

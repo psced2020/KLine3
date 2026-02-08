@@ -14,60 +14,6 @@
         <div :class="['value', priceChangeClass]">{{ priceChange }} ({{ priceChangePercent }}%)</div>
       </div>
     </div>
-    <div class="data-grid">
-      <div class="data-item">
-        <div class="label">开盘</div>
-        <div class="value">{{ openPrice }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">最高</div>
-        <div class="value">{{ highPrice }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">最低</div>
-        <div class="value">{{ lowPrice }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">量比</div>
-        <div class="value">{{ volumeRatioFormatted }}</div>
-      </div>
-    </div>
-    <div class="data-row">
-      <div class="data-item">
-        <div class="label">MA10</div>
-        <div class="value">{{ ma10Formatted }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">MA20</div>
-        <div class="value">{{ ma20Formatted }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">MA60</div>
-        <div class="value">{{ ma60Formatted }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">换手</div>
-        <div class="value">{{ turnoverRateFormatted }}%</div>
-      </div>
-    </div>
-    <div class="data-row indicators">
-      <div class="data-item">
-        <div class="label">K</div>
-        <div class="value kdj-k">{{ kdjFormatted.K }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">D</div>
-        <div class="value kdj-d">{{ kdjFormatted.D }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">J</div>
-        <div class="value kdj-j">{{ kdjFormatted.J }}</div>
-      </div>
-      <div class="data-item">
-        <div class="label">VOL</div>
-        <div class="value">{{ volume }}万</div>
-      </div>
-    </div>
   </div>
 </template>
 
