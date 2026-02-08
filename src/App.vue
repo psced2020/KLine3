@@ -1,9 +1,5 @@
 <template>
   <div class="app">
-    <HeaderBar
-      status="进行中"
-    />
-
     <div class="settings-panel">
       <!-- 股票代码设置区 -->
       <div class="stock-code-section">
@@ -59,20 +55,12 @@
         加载数据
       </button>
 
-      <!-- 隐藏数据说明 -->
-      <div class="hint-text">选择{{ trainingBars }}根K线训练，显示之前数据</div>
       <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
     </div>
 
     <StockData
       v-if="stockData.length > 0 && currentData"
       :data="currentData"
-      :ma10="ma10"
-      :ma20="ma20"
-      :ma60="ma60"
-      :kdj="kdj"
-      :volume-ratio="volumeRatio"
-      :turnover-rate="turnoverRate"
       :stock-name="stockName"
       :stock-date="formattedCurrentDate"
     />
@@ -81,6 +69,11 @@
       v-if="stockData.length > 0"
       :data="stockData"
       :current-index="currentIndex"
+      :ma10="ma10"
+      :ma20="ma20"
+      :ma60="ma60"
+      :volume-ratio="volumeRatio"
+      :turnover-rate="turnoverRate"
       @period-change="handlePeriodChange"
     />
 
@@ -102,7 +95,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import HeaderBar from './components/HeaderBar.vue'
 import StockData from './components/StockData.vue'
 import KLineChart from './components/KLineChart.vue'
 import TradeButtons from './components/TradeButtons.vue'
@@ -189,7 +181,7 @@ const remainingBars = ref(0)
 
 // 交易统计
 const tradeStats = ref({
-  money: 200000,
+  money: 1000000,
   shares: 0,
   buyPrice: 0,
   currentReturn: 0,
@@ -396,6 +388,9 @@ async function loadStockData() {
 
     remainingBars.value = data.length - currentIndex.value - 1
 
+    // 更新当前数据的指标
+    updateIndicators()
+
     // 从股票信息中提取股票名称
     if (result.stockName) {
       const parts = result.stockName.split(/\s+/)
@@ -412,7 +407,7 @@ async function loadStockData() {
 
     // 重置交易统计
     tradeStats.value = {
-      money: 200000,
+      money: 1000000,
       shares: 0,
       buyPrice: 0,
       currentReturn: 0,
@@ -420,7 +415,7 @@ async function loadStockData() {
     }
 
     // 重置计时
-    elapsedTime.value = '5秒'
+    elapsedSeconds.value = 5
 
     console.log('数据加载完成，总条数:', data.length)
   } catch (error: any) {
@@ -480,7 +475,7 @@ function calculateReturns() {
   if (!currentData.value || currentData.value.close <= 0) return
 
   const totalValue = tradeStats.value.money + tradeStats.value.shares * currentData.value.close
-  const initialMoney = 200000
+  const initialMoney = 1000000
   tradeStats.value.currentReturn = ((totalValue - initialMoney) / initialMoney) * 100
 
   if (tradeStats.value.shares > 0 && tradeStats.value.buyPrice > 0) {
@@ -490,11 +485,12 @@ function calculateReturns() {
   }
 }
 
-// 监听价格变化，更新收益率
+// 监听价格变化，更新收益率和指标
 watch(currentData, () => {
   if (currentData.value) {
     calculateReturns()
     currentDate.value = currentData.value.date
+    updateIndicators()
   }
 })
 
