@@ -397,18 +397,6 @@ function convertToMonthlyData(dailyData: StockDataItem[]): StockDataItem[] {
   return monthlyData
 }
 
-// 合并一月的数据
-function mergeMonthData(monthData: StockDataItem[]): StockDataItem {
-  return {
-    date: monthData[monthData.length - 1].date, // 使用月末的日期
-    open: monthData[0].open, // 月初开盘
-    high: Math.max(...monthData.map(d => d.high)), // 本月最高
-    low: Math.min(...monthData.map(d => d.low)), // 本月最低
-    close: monthData[monthData.length - 1].close, // 月末收盘
-    volume: monthData.reduce((sum, d) => sum + d.volume, 0) // 本月总成交量
-  }
-}
-
 // 获取日期所在的周数
 function getWeekNumber(date: Date): number {
   const onejan = new Date(date.getFullYear(), 0, 1)
