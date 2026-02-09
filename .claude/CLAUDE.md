@@ -8,6 +8,47 @@
 - **包管理器**: npm
 - **Git 仓库**: https://github.com/psced2020/KLine3
 
+# Claude Code 项目规范 (Windows Git Bash)
+
+## 运行环境配置 (Environment Context)
+- **操作系统**: Windows
+- **终端环境**: Git Bash (MinGW64)
+- **默认 Shell**: Bash
+- **编码格式**: UTF-8
+- **换行符**: 优先使用 LF
+
+## 路径处理准则 (Path Handling Rules) - 严格执行
+1. **禁用反斜杠**: 严禁在任何终端命令中使用反斜杠 `\`。所有路径必须使用正斜杠 `/`。
+2. **驱动器表示**: 访问绝对路径时，使用 Unix 风格的驱动器表示法（例如：使用 `/c/Users/` 而不是 `C:\Users\` 或 `C:/Users/`）。
+3. **强制引号**: 所有的路径参数必须包裹在双引号 `"` 中，以防止 Windows 路径中的空格或特殊字符导致解析失败。
+   - 正确示例: `ls "./src/my folder/"`
+   - 错误示例: `ls ./src/my\ folder/`
+4. **相对路径**: 优先使用相对路径（如 `./scripts/build.sh`）。
+
+## 终端命令规范 (Command Execution)
+- **标准命令**: 仅使用 Bash 兼容的命令：`ls`, `cp`, `mv`, `rm`, `mkdir`, `cat`, `grep`, `find`, `chmod`。
+- **删除操作**: 使用 `rm -rf <path>` 处理目录。
+- **创建目录**: 使用 `mkdir -p <path>` 确保父目录存在。
+- **环境变量**: 使用 `export KEY="value"` 语法设置临时环境变量。
+- **执行脚本**: 使用 `bash ./script.sh` 或 `sh ./script.sh` 明确指定解释器。
+
+## 项目常用命令 (Project Specifics)
+### 构建与安装
+- 安装依赖: `npm install` 或 `yarn`
+- 项目构建: `npm run build`
+
+### 测试规范
+- 运行单测: `npm test`
+- 运行特定测试: `npm test -- <path_to_file>` (确保路径使用 `/`)
+
+## 错误处理与纠正机制
+- **路径纠错**: 如果命令因 "No such file or directory" 失败，请检查是否误用了 `\` 或驱动器盘符格式。
+- **权限问题**: 在 Windows 下，如果遇到权限错误，请尝试检查文件是否被其他 Windows 程序占用，而不是盲目使用 `sudo`（Git Bash 中无效）。
+- **路径转换**: 如果从 Windows 宿主工具获取了输出，在将其作为参数传递给下一个命令前，必须通过逻辑将 `\` 转换为 `/`。
+
+---
+**注意**: 请始终记住你是在 Windows 上的 Git Bash 环境中运行。在调用 `run_terminal_command` 之前，请务必根据上述规则校验命令字符串。
+
 ## 常用命令
 ```bash
 npm install     # 安装依赖

@@ -46,7 +46,7 @@ const chartRef = ref<HTMLElement>()
 let chart: echarts.ECharts | null = null
 
 const periods = ['日K', '周K', '月K']
-const currentPeriod = ref('日K')
+const currentPeriod = ref('周K')
 
 // 计算均线
 function calculateMA(data: StockData[], dayCount: number): (number | null)[] {

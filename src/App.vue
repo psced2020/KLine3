@@ -114,7 +114,7 @@ const stockCode = ref('600519')
 const stockName = ref('')
 const currentDate = ref('')
 const trainingDate = ref('')
-const currentPeriod = ref('日K')
+const currentPeriod = ref('周K')
 const trainingBars = ref(200)
 const customTrainingBars = ref('')
 
@@ -292,6 +292,8 @@ async function loadStockList() {
     const stocks = await response.json()
     stockList.value = stocks.map((item: any) => item.code)
     console.log('股票列表加载成功，共', stockList.value.length, '只股票')
+    // 保存到 localStorage
+    localStorage.setItem('stockList', JSON.stringify(stockList.value))
   } catch (error: any) {
     console.error('加载股票列表失败:', error.message)
   }
@@ -593,12 +595,16 @@ watch(currentData, () => {
   }
 })
 
-// 监听股票代码变化，清空缓存
-watch(stockCode, () => {
+// 监听股票代码变化，清空缓存并保存到 localStorage
+watch(stockCode, (newCode) => {
   console.log('股票代码变化，清空缓存')
   allPeriodData.value = {}
   trainingDate.value = ''
   stockData.value = []
+  // 保存到 localStorage
+  if (newCode) {
+    localStorage.setItem('lastStockCode', newCode)
+  }
 })
 
 // 时间计时（秒数）
@@ -609,7 +615,24 @@ const elapsedTime = computed(() => `${elapsedSeconds.value}秒`)
 
 let timer: number | null = null
 onMounted(() => {
-  // 加载股票列表
+  // 从 localStorage 恢复股票列表（如果存在）
+  const savedStockList = localStorage.getItem('stockList')
+  if (savedStockList) {
+    try {
+      stockList.value = JSON.parse(savedStockList)
+      console.log('从 localStorage 恢复股票列表，共', stockList.value.length, '只股票')
+    } catch (e) {
+      console.error('解析股票列表失败:', e)
+    }
+  }
+
+  // 从 localStorage 恢复上次股票代码（如果存在）
+  const savedStockCode = localStorage.getItem('lastStockCode')
+  if (savedStockCode) {
+    stockCode.value = savedStockCode
+  }
+
+  // 加载股票列表（更新最新数据）
   loadStockList()
 
   timer = window.setInterval(() => {
