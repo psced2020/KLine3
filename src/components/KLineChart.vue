@@ -97,6 +97,45 @@ function calculateKDJ(data: StockData[]) {
   return { K, D, J }
 }
 
+// 计算EMA（指数移动平均线）
+function calculateEMA(data: StockData[], period: number): number[] {
+  const ema: number[] = []
+  const k = 2 / (period + 1)
+
+  for (let i = 0; i < data.length; i++) {
+    if (i === 0) {
+      ema.push(data[i].close)
+    } else {
+      ema.push(data[i].close * k + ema[i - 1] * (1 - k))
+    }
+  }
+
+  return ema
+}
+
+// 计算MACD
+function calculateMACD(data: StockData[]) {
+  const ema12 = calculateEMA(data, 12)
+  const ema26 = calculateEMA(data, 26)
+  const dif: number[] = []
+  const dea: number[] = []
+  const macd: number[] = []
+
+  for (let i = 0; i < data.length; i++) {
+    dif.push(ema12[i] - ema26[i])
+
+    if (i === 0) {
+      dea.push(dif[i])
+    } else {
+      dea.push(dif[i] * 0.2 + dea[i - 1] * 0.8)
+    }
+
+    macd.push((dif[i] - dea[i]) * 2)
+  }
+
+  return { DIF: dif, DEA: dea, MACD: macd }
+}
+
 function initChart() {
   if (!chartRef.value) return
 
@@ -117,6 +156,7 @@ function renderChart() {
   const volumes = displayData.map((item, index) => [index, item.volume, item.open > item.close ? 1 : -1])
 
   const { K, D, J } = calculateKDJ(displayData)
+  const { DIF, DEA, MACD } = calculateMACD(displayData)
   const ma20 = calculateMA(displayData, 20)
   const ma60 = calculateMA(displayData, 60)
 
@@ -129,9 +169,10 @@ function renderChart() {
 
   const option: echarts.EChartsOption = {
     grid: [
-      { left: '10%', right: '10%', top: '10%', height: '40%' },
-      { left: '10%', right: '10%', top: '55%', height: '15%' },
-      { left: '10%', right: '10%', top: '75%', height: '18%' }
+      { left: '10%', right: '10%', top: '10%', height: '36%' },
+      { left: '10%', right: '10%', top: '49%', height: '12%' },
+      { left: '10%', right: '10%', top: '64%', height: '15%' },
+      { left: '10%', right: '10%', top: '81%', height: '15%' }
     ],
     xAxis: [
       {
@@ -152,6 +193,13 @@ function renderChart() {
         type: 'category',
         data: dates,
         gridIndex: 2,
+        axisLine: { lineStyle: { color: '#ddd' } },
+        axisLabel: { show: false }
+      },
+      {
+        type: 'category',
+        data: dates,
+        gridIndex: 3,
         axisLine: { lineStyle: { color: '#ddd' } },
         axisLabel: {
           color: '#666',
@@ -190,12 +238,23 @@ function renderChart() {
         axisLabel: {
           color: '#666'
         }
+      },
+      {
+        scale: true,
+        gridIndex: 3,
+        splitNumber: 4,
+        axisLine: { lineStyle: { color: '#ddd' } },
+        splitLine: { lineStyle: { color: '#f0f0f0' } },
+        axisLabel: {
+          color: '#666',
+          formatter: (value: number) => value.toFixed(2)
+        }
       }
     ],
     dataZoom: [
       {
         type: 'inside',
-        xAxisIndex: [0, 1, 2],
+        xAxisIndex: [0, 1, 2, 3],
         start: zoomStart,
         end: 100
       }
@@ -267,6 +326,36 @@ function renderChart() {
         smooth: true,
         showSymbol: false,
         lineStyle: { color: '#FF3D00', width: 1.5 }
+      },
+      {
+        name: 'DIF',
+        type: 'line',
+        xAxisIndex: 3,
+        yAxisIndex: 3,
+        data: DIF,
+        smooth: true,
+        showSymbol: false,
+        lineStyle: { color: '#2196F3', width: 1.5 }
+      },
+      {
+        name: 'DEA',
+        type: 'line',
+        xAxisIndex: 3,
+        yAxisIndex: 3,
+        data: DEA,
+        smooth: true,
+        showSymbol: false,
+        lineStyle: { color: '#333333', width: 1.5 }
+      },
+      {
+        name: 'MACD',
+        type: 'bar',
+        xAxisIndex: 3,
+        yAxisIndex: 3,
+        data: MACD,
+        itemStyle: {
+          color: (params: any) => (params.data >= 0 ? '#00C853' : '#FF3D00')
+        }
       }
     ],
     graphic: displayData.length > 0 ? (() => {
@@ -386,20 +475,38 @@ function renderChart() {
         {
           type: 'text',
           left: '10%',
-          top: '72%',
+          top: '65%',
           style: { ...baseStyle, ...valueStyle, fill: '#2196F3', text: `K：${K[K.length - 1]?.toFixed(2) || '-'}` }
         },
         {
           type: 'text',
           left: '40%',
-          top: '72%',
+          top: '65%',
           style: { ...baseStyle, ...valueStyle, fill: '#FFC107', text: `D：${D[D.length - 1]?.toFixed(2) || '-'}` }
         },
         {
           type: 'text',
           left: '70%',
-          top: '72%',
+          top: '65%',
           style: { ...baseStyle, ...valueStyle, fill: '#FF3D00', text: `J：${J[J.length - 1]?.toFixed(2) || '-'}` }
+        },
+        {
+          type: 'text',
+          left: '10%',
+          top: '82%',
+          style: { ...baseStyle, ...valueStyle, fill: '#2196F3', text: `DIF：${DIF[DIF.length - 1]?.toFixed(2) || '-'}` }
+        },
+        {
+          type: 'text',
+          left: '40%',
+          top: '82%',
+          style: { ...baseStyle, ...valueStyle, fill: '#333333', text: `DEA：${DEA[DEA.length - 1]?.toFixed(2) || '-'}` }
+        },
+        {
+          type: 'text',
+          left: '70%',
+          top: '82%',
+          style: { ...baseStyle, ...valueStyle, fill: MACD[MACD.length - 1] >= 0 ? '#00C853' : '#FF3D00', text: `MACD：${MACD[MACD.length - 1]?.toFixed(2) || '-'}` }
         }
       ]
     })() : undefined
