@@ -303,3 +303,152 @@ src/
 - 表情符号: 原则: 用 Markdown 建立结构帮助 AI 理解，但保持简洁，不过度装饰
 
 **原则**: 用 Markdown 建立结构帮助 AI 理解，但保持简洁，不过度装饰
+
+---
+
+## 技术指标实现
+
+### MACD-V（成交量加权 MACD）
+**原理**: 在传统 MACD 基础上引入成交量权重，使带量上涨的信号更强
+
+**实现方式**:
+```typescript
+// 计算 VWMA（成交量加权移动平均）
+// VWMA = Σ(价格×成交量) / Σ(成交量)
+
+function calculateVWMA(data: StockData[], period: number): number[] {
+  const vwma: number[] = []
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) {
+      vwma.push(0)
+    } else {
+      let sumPriceVolume = 0
+      let sumVolume = 0
+      for (let j = 0; j < period; j++) {
+        sumPriceVolume += data[i - j].close * data[i - j].volume
+        sumVolume += data[i - j].volume
+      }
+      vwma.push(sumVolume > 0 ? sumPriceVolume / sumVolume : 0)
+    }
+  }
+  return vwma
+}
+
+// 计算 MACD-V
+// VWMA12 = 12日 VWMA, VWMA26 = 26日 VWMA
+// DIF = VWMA12 - VWMA26
+// DEA = DIF 的 9日 EMA（保持不变）
+// MACD = (DIF - DEA) × 2
+
+function calculateMACDV(data: StockData[]) {
+  const vwma12 = calculateVWMA(data, 12)
+  const vwma26 = calculateVWMA(data, 26)
+  const dif: number[] = []
+  const dea: number[] = []
+  const macd: number[] = []
+
+  for (let i = 0; i < data.length; i++) {
+    dif.push(vwma12[i] - vwma26[i])
+    if (i === 0) {
+      dea.push(dif[i])
+    } else {
+      dea.push(dif[i] * 0.2 + dea[i - 1] * 0.8)
+    }
+    macd.push((dif[i] - dea[i]) * 2)
+  }
+
+  return { DIF: dif, DEA: dea, MACD: macd }
+}
+```
+
+**实现位置**: `src/components/KLineChart.vue` 中的 `calculateMACDV` 函数
+
+---
+
+## 图表文字标注相对定位规范
+
+**背景**: ECharts graphic 组件的百分比定位是相对于整个图表容器的，为避免文字遮挡图表内容，需要将文字标注相对各 grid 区域定位。
+
+**Grid 配置**:
+```
+grid: [
+  { left: '10%', right: '10%', top: '10%', height: '36%' },   // Grid 0 (K线)
+  { left: '10%', right: '10%', top: '49%', height: '12%' },   // Grid 1 (成交量)
+  { left: '10%', right: '10%', top: '64%', height: '15%' },   // Grid 2 (KDJ)
+  { left: '10%', right: '10%', top: '81%', height: '15%' }    // Grid 3 (MACD-V)
+]
+```
+
+**文字定位计算方式**:
+- Grid N 起始位置 = grid.top
+- 文字相对于 grid 起始位置的偏移 = offset
+- 最终 top 值 = grid.top + offset
+
+**示例** (以 Grid 0 为例):
+- Grid 0 起始位置 = 10%
+- 标签行偏移 = -9% (grid 起始位置上方)
+- 数值行偏移 = -6% (grid 起始位置上方)
+
+标签行 top = 10% + (-9%) = 1%
+数值行 top = 10% + (-6%) = 4%
+
+**当前实现** (KLineChart.vue graphic 文字标注):
+```
+Grid 0 (K线):
+  - 标签行: top: 1%, left: [10%, 28%, 46%, 64%, 82%]
+  - 数值行: top: 4%, left: [10%, 28%, 46%, 64%, 82%]
+
+Grid 1 (成交量):
+  - 标签行: top: 47%, left: [10%, 40%, 75%]
+  - 数值行: top: 50%, left: [10%, 40%, 75%]
+
+Grid 2 (KDJ):
+  - top: 62%, left: [10%, 40%, 70%]
+
+Grid 3 (MACD-V):
+  - top: 79%, left: [10%, 40%, 70%]
+```
+
+**优势**:
+- 调整 grid 位置时，文字自动跟随移动
+- 各 grid 高度变化时，文字相对位置保持不变
+- 更符合模块化和可维护性
+
+---
+
+## 组件架构调整记录
+
+### TradeStats 组件重构
+**时间**: 2025-02-13
+
+**变更内容**:
+- 移除 StockData 组件，合并到 TradeStats
+- TradeStats 新增现价、涨跌展示（带涨跌颜色）
+- TradeStats 新增股票名称和日期展示
+- 移除第三行（用时显示）
+- 剩余K线移至第二行
+- 第二行调整为 4 列布局：[本局收益, 开仓收益, 股票信息, 剩余K线]
+- Flex 布局调整：收益项 flex: 0.6，股票信息 flex: 2
+
+**Props 变更**:
+```typescript
+interface Props {
+  stats: TradeStats
+  remainingBars: number
+  stockData?: StockDataItem    // 新增
+  stockName?: string           // 新增
+  stockDate?: string           // 新增
+  // 已删除: elapsedTime
+}
+```
+
+**样式新增**:
+```css
+.stat-item-compact { flex: 0.6; }      // 收益项缩小
+.stock-info-wide { flex: 2; }         // 股票信息扩大
+.price-up { color: #FF8A65; }       // 涨（红）
+.price-down { color: #81C784; }     // 跌（绿）
+.stock-info { display: flex; flex-direction: column; }
+```
+
+**实现位置**: `src/components/TradeStats.vue`
