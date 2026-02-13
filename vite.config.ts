@@ -23,6 +23,7 @@ export default defineConfig({
     })
   ],
   server: {
+    port: 6173,
     proxy: {
       '/tushare': {
         target: 'https://api.tushare.pro',

@@ -1,31 +1,9 @@
 <template>
   <div class="app">
     <div class="settings-panel">
-      <!-- 股票代码设置区 -->
-      <div class="stock-code-section">
-        <div class="stock-code-row">
-          <div class="section-label">股票代码：</div>
-          <input v-model="stockCode" placeholder="600519" />
-          <div class="nav-buttons">
-            <button class="nav-btn" @click="navigateStock('prev')" :disabled="!hasPrevStock" title="上一条">
-              <svg class="nav-icon" viewBox="0 0 24 24">
-                <path d="M12 4l-8 8h6v8h4v-8h6l-8-8z" fill="currentColor"/>
-              </svg>
-            </button>
-            <button class="nav-btn" @click="navigateStock('next')" :disabled="!hasNextStock" title="下一条">
-              <svg class="nav-icon" viewBox="0 0 24 24">
-                <path d="M12 20l8-8h-6v-8h-4v8h-6l8 8z" fill="currentColor"/>
-              </svg>
-            </button>
-            <button class="nav-btn" @click="navigateStock('random')">随机</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 训练K线选择区 -->
+      <!-- 训练K线和周期选择区 -->
       <div class="training-bars-section">
         <div class="training-bars-row">
-          <div class="section-label">训练K线：</div>
           <div class="training-bars-controls">
             <div class="radio-buttons">
               <button
@@ -47,23 +25,45 @@
               @input="handleCustomInput"
             />
           </div>
+          <div class="period-buttons">
+            <button
+              v-for="period in ['日K', '周K', '月K']"
+              :key="period"
+              class="period-btn"
+              :class="{ active: currentPeriod === period }"
+              @click="handlePeriodChange(period)"
+            >
+              {{ period }}
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- 加载数据按钮 -->
-      <button class="load-button" @click="loadStockData()" :disabled="loading">
-        加载数据
-      </button>
+      <!-- 股票代码和加载按钮区 -->
+      <div class="stock-code-section">
+        <div class="stock-code-row">
+          <input v-model="stockCode" placeholder="600519" />
+          <div class="nav-buttons">
+            <button class="nav-btn" @click="navigateStock('prev')" :disabled="!hasPrevStock" title="上一条">
+              <svg class="nav-icon" viewBox="0 0 24 24">
+                <path d="M12 4l-8 8h6v8h4v-8h6l-8-8z" fill="currentColor"/>
+              </svg>
+            </button>
+            <button class="nav-btn" @click="navigateStock('next')" :disabled="!hasNextStock" title="下一条">
+              <svg class="nav-icon" viewBox="0 0 24 24">
+                <path d="M12 20l8-8h-6v-8h-4v8h-6l8 8z" fill="currentColor"/>
+              </svg>
+            </button>
+            <button class="nav-btn" @click="navigateStock('random')">随机</button>
+          </div>
+          <button class="load-button" @click="loadStockData()" :disabled="loading">
+            加载数据
+          </button>
+        </div>
+      </div>
 
       <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
     </div>
-
-    <StockData
-      v-if="stockData.length > 0 && currentData"
-      :data="currentData"
-      :stock-name="stockName"
-      :stock-date="formattedCurrentDate"
-    />
 
     <KLineChart
       v-if="stockData.length > 0"
@@ -74,7 +74,7 @@
       :ma60="ma60"
       :volume-ratio="volumeRatio"
       :turnover-rate="turnoverRate"
-      @period-change="handlePeriodChange"
+      :current-period="currentPeriod"
     />
 
     <TradeButtons
@@ -89,13 +89,15 @@
       :stats="tradeStats"
       :elapsed-time="elapsedTime"
       :remaining-bars="remainingBars"
+      :stock-data="currentData"
+      :stock-name="stockName"
+      :stock-date="formattedCurrentDate"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import StockData from './components/StockData.vue'
 import KLineChart from './components/KLineChart.vue'
 import TradeButtons from './components/TradeButtons.vue'
 import TradeStats from './components/TradeStats.vue'
@@ -659,12 +661,12 @@ onUnmounted(() => {
 
 .settings-panel {
   background: #fff;
-  padding: 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid #eee;
 }
 
 .stock-code-section {
-  margin-bottom: 15px;
+  margin-top: 10px;
 }
 
 .section-label {
@@ -679,7 +681,7 @@ onUnmounted(() => {
 
 .stock-code-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -690,21 +692,21 @@ onUnmounted(() => {
   border-radius: 6px;
   font-size: 14px;
   text-align: center;
-  width: 100px;
+  width: 90px;
 }
 
 .nav-buttons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .nav-btn {
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: #f5f5f5;
   color: #666;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s;
@@ -714,12 +716,12 @@ onUnmounted(() => {
 }
 
 .nav-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .nav-btn:has(.nav-icon) {
-  padding: 8px;
+  padding: 6px;
 }
 
 .nav-btn:hover:not(:disabled) {
@@ -734,23 +736,23 @@ onUnmounted(() => {
 
 .radio-buttons {
   display: flex;
-  gap: 20px;
+  gap: 12px;
 }
 
 .training-bars-controls {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 }
 
 .custom-input {
-  padding: 6px 12px;
+  padding: 5px 10px;
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   text-align: center;
-  width: 80px;
+  width: 70px;
 }
 
 .custom-input:focus {
@@ -759,9 +761,9 @@ onUnmounted(() => {
 }
 
 .radio-btn {
-  padding: 6px 16px;
-  border-radius: 12px;
-  font-size: 14px;
+  padding: 5px 12px;
+  border-radius: 10px;
+  font-size: 13px;
   color: #666;
   cursor: pointer;
   transition: all 0.2s;
@@ -781,17 +783,44 @@ onUnmounted(() => {
 }
 
 .training-bars-section {
-  margin-bottom: 15px;
+  margin-bottom: 0;
 }
 
 .training-bars-row {
   display: flex;
-  gap: 10px;
+  justify-content: space-between;
   align-items: center;
 }
 
+.period-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.period-btn {
+  padding: 5px 12px;
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.period-btn.active {
+  background: var(--primary-purple);
+  color: #fff;
+  border-color: var(--primary-purple);
+}
+
+.period-btn:hover:not(.active) {
+  background: #e0e0e0;
+}
+
 .section-label {
-  font-size: 14px;
+  font-size: 13px;
   color: #666;
   margin-bottom: 8px;
 }
@@ -804,16 +833,15 @@ onUnmounted(() => {
 }
 
 .load-button {
-  width: 100%;
-  padding: 12px;
+  padding: 8px 16px;
   background: var(--primary-purple);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 6px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 8px;
+  white-space: nowrap;
   transition: background 0.2s;
 }
 

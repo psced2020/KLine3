@@ -1,15 +1,5 @@
 <template>
   <div class="kline-chart">
-    <div class="period-tabs">
-      <div
-        v-for="period in periods"
-        :key="period"
-        :class="['period-tab', { active: currentPeriod === period }]"
-        @click="changePeriod(period)"
-      >
-        {{ period }}
-      </div>
-    </div>
     <div ref="chartRef" class="chart-container"></div>
   </div>
 </template>
@@ -35,18 +25,13 @@ interface Props {
   ma60?: number
   volumeRatio?: number
   turnoverRate?: number
+  currentPeriod?: string
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{
-  periodChange: [period: string]
-}>()
 
 const chartRef = ref<HTMLElement>()
 let chart: echarts.ECharts | null = null
-
-const periods = ['日K', '周K', '月K']
-const currentPeriod = ref('周K')
 
 // 计算均线
 function calculateMA(data: StockData[], dayCount: number): (number | null)[] {
@@ -113,16 +98,39 @@ function calculateEMA(data: StockData[], period: number): number[] {
   return ema
 }
 
-// 计算MACD
-function calculateMACD(data: StockData[]) {
-  const ema12 = calculateEMA(data, 12)
-  const ema26 = calculateEMA(data, 26)
+// 计算VWMA（成交量加权移动平均）
+function calculateVWMA(data: StockData[], period: number): number[] {
+  const vwma: number[] = []
+
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) {
+      vwma.push(0)
+    } else {
+      let sumPriceVolume = 0
+      let sumVolume = 0
+
+      for (let j = 0; j < period; j++) {
+        sumPriceVolume += data[i - j].close * data[i - j].volume
+        sumVolume += data[i - j].volume
+      }
+
+      vwma.push(sumVolume > 0 ? sumPriceVolume / sumVolume : 0)
+    }
+  }
+
+  return vwma
+}
+
+// 计算MACD-V（成交量加权MACD）
+function calculateMACDV(data: StockData[]) {
+  const vwma12 = calculateVWMA(data, 12)
+  const vwma26 = calculateVWMA(data, 26)
   const dif: number[] = []
   const dea: number[] = []
   const macd: number[] = []
 
   for (let i = 0; i < data.length; i++) {
-    dif.push(ema12[i] - ema26[i])
+    dif.push(vwma12[i] - vwma26[i])
 
     if (i === 0) {
       dea.push(dif[i])
@@ -156,7 +164,7 @@ function renderChart() {
   const volumes = displayData.map((item, index) => [index, item.volume, item.open > item.close ? 1 : -1])
 
   const { K, D, J } = calculateKDJ(displayData)
-  const { DIF, DEA, MACD } = calculateMACD(displayData)
+  const { DIF, DEA, MACD } = calculateMACDV(displayData)
   const ma20 = calculateMA(displayData, 20)
   const ma60 = calculateMA(displayData, 60)
 
@@ -506,7 +514,7 @@ function renderChart() {
           type: 'text',
           left: '70%',
           top: '82%',
-          style: { ...baseStyle, ...valueStyle, fill: MACD[MACD.length - 1] >= 0 ? '#00C853' : '#FF3D00', text: `MACD：${MACD[MACD.length - 1]?.toFixed(2) || '-'}` }
+          style: { ...baseStyle, ...valueStyle, fill: MACD[MACD.length - 1] >= 0 ? '#00C853' : '#FF3D00', text: `MACD-V：${MACD[MACD.length - 1]?.toFixed(2) || '-'}` }
         }
       ]
     })() : undefined
@@ -518,11 +526,6 @@ function renderChart() {
 
 function handleResize() {
   chart?.resize()
-}
-
-function changePeriod(period: string) {
-  currentPeriod.value = period
-  emit('periodChange', period)
 }
 
 watch(() => props.data, () => {
@@ -546,31 +549,6 @@ onUnmounted(() => {
 <style scoped>
 .kline-chart {
   background: #fff;
-}
-
-.period-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-}
-
-.period-tab {
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.period-tab.active {
-  background: var(--primary-purple);
-  color: #fff;
-}
-
-.period-tab:hover:not(.active) {
-  background: #f0f0f0;
 }
 
 .chart-container {
