@@ -87,7 +87,6 @@
     <TradeStats
       v-if="stockData.length > 0"
       :stats="tradeStats"
-      :elapsed-time="elapsedTime"
       :remaining-bars="remainingBars"
       :stock-data="currentData"
       :stock-name="stockName"

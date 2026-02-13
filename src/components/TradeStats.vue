@@ -22,28 +22,22 @@
         <div :class="['stat-value', priceChangeClass]">{{ priceChange }}%</div>
       </div>
     </div>
-    <div class="stats-row">
-      <div class="stat-item">
+    <div class="stats-row stats-row-compact">
+      <div class="stat-item stat-item-compact">
         <div class="stat-label">本局收益</div>
         <div :class="['stat-value', stats.currentReturn >= 0 ? 'positive' : 'negative']">
           {{ stats.currentReturn >= 0 ? '+' : '' }}{{ stats.currentReturn.toFixed(2) }}%
         </div>
       </div>
-      <div class="stat-item">
+      <div class="stat-item stat-item-compact">
         <div class="stat-label">开仓收益</div>
         <div :class="['stat-value', stats.positionReturn >= 0 ? 'positive' : 'negative']">
           {{ stats.positionReturn >= 0 ? '+' : '' }}{{ stats.positionReturn.toFixed(2) }}%
         </div>
       </div>
-      <div class="stat-item stock-info">
+      <div class="stat-item stock-info stock-info-wide">
         <div class="stock-name">{{ stockName }}</div>
         <div class="stock-date">{{ stockDate }}</div>
-      </div>
-    </div>
-    <div class="stats-row">
-      <div class="stat-item">
-        <div class="stat-label">用时</div>
-        <div class="stat-value">{{ elapsedTime }}</div>
       </div>
       <div class="stat-item">
         <div class="stat-label">剩余K线</div>
@@ -74,7 +68,6 @@ interface StockDataItem {
 
 interface Props {
   stats: TradeStats
-  elapsedTime: string
   remainingBars: number
   stockData?: StockDataItem
   stockName?: string
@@ -100,9 +93,9 @@ const priceChangeClass = computed(() => {
 
 function formatMoney(value: number): string {
   if (value >= 10000) {
-    return (value / 10000).toFixed(2) + '万'
+    return (value / 10000).toFixed(0) + '万'
   }
-  return value.toFixed(2)
+  return Math.floor(value).toString()
 }
 </script>
 
@@ -158,6 +151,14 @@ function formatMoney(value: number): string {
 
 .price-neutral {
   color: #fff;
+}
+
+.stat-item-compact {
+  flex: 0.6;
+}
+
+.stock-info-wide {
+  flex: 2;
 }
 
 .stock-info {
