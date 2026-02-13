@@ -447,73 +447,73 @@ function renderChart() {
         {
           type: 'text',
           left: '10%',
-          top: '52%',
+          top: '47%',
           style: { ...baseStyle, ...labelStyle, text: 'VOL' }
         },
         {
           type: 'text',
-          left: '28%',
-          top: '52%',
+          left: '40%',
+          top: '47%',
           style: { ...baseStyle, ...labelStyle, text: '换手' }
         },
         {
           type: 'text',
-          left: '46%',
-          top: '52%',
+          left: '75%',
+          top: '47%',
           style: { ...baseStyle, ...labelStyle, text: '量比' }
         },
         {
           type: 'text',
           left: '10%',
-          top: '55%',
+          top: '50%',
           style: { ...baseStyle, ...valueStyle, text: (current?.volume / 10000).toFixed(2) + '万' }
         },
         {
           type: 'text',
-          left: '28%',
-          top: '55%',
+          left: '40%',
+          top: '50%',
           style: { ...baseStyle, ...valueStyle, text: (props.turnoverRate || 0).toFixed(2) + '%' }
         },
         {
           type: 'text',
-          left: '46%',
-          top: '55%',
+          left: '75%',
+          top: '50%',
           style: { ...baseStyle, ...valueStyle, text: (props.volumeRatio || 0).toFixed(2) }
         },
         {
           type: 'text',
           left: '10%',
-          top: '65%',
+          top: '62%',
           style: { ...baseStyle, ...valueStyle, fill: '#2196F3', text: `K：${K[K.length - 1]?.toFixed(2) || '-'}` }
         },
         {
           type: 'text',
           left: '40%',
-          top: '65%',
+          top: '62%',
           style: { ...baseStyle, ...valueStyle, fill: '#FFC107', text: `D：${D[D.length - 1]?.toFixed(2) || '-'}` }
         },
         {
           type: 'text',
           left: '70%',
-          top: '65%',
+          top: '62%',
           style: { ...baseStyle, ...valueStyle, fill: '#FF3D00', text: `J：${J[J.length - 1]?.toFixed(2) || '-'}` }
         },
         {
           type: 'text',
           left: '10%',
-          top: '82%',
+          top: '79%',
           style: { ...baseStyle, ...valueStyle, fill: '#2196F3', text: `DIF：${DIF[DIF.length - 1]?.toFixed(2) || '-'}` }
         },
         {
           type: 'text',
           left: '40%',
-          top: '82%',
+          top: '79%',
           style: { ...baseStyle, ...valueStyle, fill: '#333333', text: `DEA：${DEA[DEA.length - 1]?.toFixed(2) || '-'}` }
         },
         {
           type: 'text',
           left: '70%',
-          top: '82%',
+          top: '79%',
           style: { ...baseStyle, ...valueStyle, fill: MACD[MACD.length - 1] >= 0 ? '#00C853' : '#FF3D00', text: `MACD-V：${MACD[MACD.length - 1]?.toFixed(2) || '-'}` }
         }
       ]
