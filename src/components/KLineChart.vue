@@ -33,6 +33,9 @@ const props = defineProps<Props>()
 const chartRef = ref<HTMLElement>()
 let chart: echarts.ECharts | null = null
 
+// Grid 3 指标类型：'macd-v' 或 'macd'
+const indicatorType = ref<'macd-v' | 'macd'>('macd-v')
+
 // 计算均线
 function calculateMA(data: StockData[], dayCount: number): (number | null)[] {
   const ma: (number | null)[] = []
@@ -98,39 +101,82 @@ function calculateEMA(data: StockData[], period: number): number[] {
   return ema
 }
 
-// 计算VWMA（成交量加权移动平均）
-function calculateVWMA(data: StockData[], period: number): number[] {
-  const vwma: number[] = []
+// 计算VEMA（成交量指数加权EMA）
+// 公式：VEMA_t = (α * P_t * V_t + (1-α) * VEMA_{t-1}) / (α * V_t + (1-α))
+function calculateVEMA(data: StockData[], period: number): number[] {
+  const alpha = 2 / (period + 1)  // α = 2 / (N+1)
+  const vema: number[] = []
 
+  // 初始化：使用第一天的收盘价
+  vema[0] = data[0].close
+
+  // 计算成交量的中位数用于归一化
+  const volumes = data.map(d => d.volume)
+  volumes.sort((a, b) => a - b)
+  const medianVolume = volumes[Math.floor(volumes.length / 2)]
+
+  for (let i = 1; i < data.length; i++) {
+    const price = data[i].close
+    const vol = data[i].volume
+
+    // 成交量归一化：相对于中位数的比例，使值在合理范围内
+    const normalizedVol = vol / medianVolume
+
+    // 分子：价格×成交量进入指数衰减
+    const numerator = alpha * price * normalizedVol + (1 - alpha) * vema[i - 1]
+
+    // 分母：成交量也指数衰减
+    const denominator = alpha * normalizedVol + (1 - alpha)
+
+    // VEMA = 指数衰减的 VWAP
+    vema[i] = denominator !== 0 ? numerator / denominator : vema[i - 1]
+  }
+
+  return vema
+}
+
+// 计算MACD-V（成交量加权MACD）- 严格指数结构版本
+function calculateMACDV(data: StockData[]) {
+  // Step 3-4: 计算快线和慢线的 VEMA
+  const vema12 = calculateVEMA(data, 12)  // 快线 VEMA12
+  const vema26 = calculateVEMA(data, 26)  // 慢线 VEMA26
+
+  // Step 5: 计算 DIF
+  const dif: number[] = []
   for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) {
-      vwma.push(0)
+    dif.push(vema12[i] - vema26[i])
+  }
+
+  // Step 6: 计算 DEA（标准 EMA 结构，9日）
+  const alpha9 = 2 / (9 + 1)  // α_9 = 0.2
+  const dea: number[] = []
+  for (let i = 0; i < dif.length; i++) {
+    if (i === 0) {
+      dea.push(dif[i])
     } else {
-      let sumPriceVolume = 0
-      let sumVolume = 0
-
-      for (let j = 0; j < period; j++) {
-        sumPriceVolume += data[i - j].close * data[i - j].volume
-        sumVolume += data[i - j].volume
-      }
-
-      vwma.push(sumVolume > 0 ? sumPriceVolume / sumVolume : 0)
+      dea.push(alpha9 * dif[i] + (1 - alpha9) * dea[i - 1])
     }
   }
 
-  return vwma
+  // Step 7: 计算 MACD 柱状图
+  const macd: number[] = []
+  for (let i = 0; i < dif.length; i++) {
+    macd.push((dif[i] - dea[i]) * 2)
+  }
+
+  return { DIF: dif, DEA: dea, MACD: macd }
 }
 
-// 计算MACD-V（成交量加权MACD）
-function calculateMACDV(data: StockData[]) {
-  const vwma12 = calculateVWMA(data, 12)
-  const vwma26 = calculateVWMA(data, 26)
+// 计算标准MACD（使用EMA）
+function calculateMACD(data: StockData[]) {
+  const ema12 = calculateEMA(data, 12)
+  const ema26 = calculateEMA(data, 26)
   const dif: number[] = []
   const dea: number[] = []
   const macd: number[] = []
 
   for (let i = 0; i < data.length; i++) {
-    dif.push(vwma12[i] - vwma26[i])
+    dif.push(ema12[i] - ema26[i])
 
     if (i === 0) {
       dea.push(dif[i])
@@ -144,12 +190,51 @@ function calculateMACDV(data: StockData[]) {
   return { DIF: dif, DEA: dea, MACD: macd }
 }
 
+// 切换 Grid 3 指标类型
+function toggleIndicator() {
+  indicatorType.value = indicatorType.value === 'macd-v' ? 'macd' : 'macd-v'
+  renderChart()
+}
+
+// 处理图表区域的双击事件
+function handleChartDblClick(event: MouseEvent) {
+  if (!chartRef.value) return
+
+  // 获取图表容器的边界
+  const containerRect = chartRef.value.getBoundingClientRect()
+
+  // 计算鼠标相对于容器的坐标
+  const offsetX = event.clientX - containerRect.left
+  const offsetY = event.clientY - containerRect.top
+
+  // Grid 3 区域: top: '81%', height: '15%'
+  // 即从 81% 到 96% (81% + 15%)
+  const grid3TopPercent = 0.81
+  const grid3BottomPercent = 0.96
+
+  const relativeY = offsetY / containerRect.height
+
+  // 检查是否在 Grid 3 的 Y 坐标范围内
+  if (relativeY >= grid3TopPercent && relativeY <= grid3BottomPercent) {
+    // 同时检查 X 坐标范围（left: 10%, right: 10%，即 10% 到 90%）
+    const grid3LeftPercent = 0.10
+    const grid3RightPercent = 0.90
+    const relativeX = offsetX / containerRect.width
+
+    if (relativeX >= grid3LeftPercent && relativeX <= grid3RightPercent) {
+      toggleIndicator()
+    }
+  }
+}
+
 function initChart() {
   if (!chartRef.value) return
 
   chart = echarts.init(chartRef.value)
   renderChart()
   window.addEventListener('resize', handleResize)
+  // 在图表容器上添加双击事件监听
+  chartRef.value.addEventListener('dblclick', handleChartDblClick)
 }
 
 function renderChart() {
@@ -164,7 +249,11 @@ function renderChart() {
   const volumes = displayData.map((item, index) => [index, item.volume, item.open > item.close ? 1 : -1])
 
   const { K, D, J } = calculateKDJ(displayData)
-  const { DIF, DEA, MACD } = calculateMACDV(displayData)
+  // 根据指标类型计算 MACD 数据
+  const macdData = indicatorType.value === 'macd-v'
+    ? calculateMACDV(displayData)
+    : calculateMACD(displayData)
+  const { DIF, DEA, MACD } = macdData
   const ma20 = calculateMA(displayData, 20)
   const ma60 = calculateMA(displayData, 60)
 
@@ -514,7 +603,7 @@ function renderChart() {
           type: 'text',
           left: '70%',
           top: '79%',
-          style: { ...baseStyle, ...valueStyle, fill: MACD[MACD.length - 1] >= 0 ? '#00C853' : '#FF3D00', text: `MACD-V：${MACD[MACD.length - 1]?.toFixed(2) || '-'}` }
+          style: { ...baseStyle, ...valueStyle, fill: MACD[MACD.length - 1] >= 0 ? '#00C853' : '#FF3D00', text: `${indicatorType.value.toUpperCase()}：${MACD[MACD.length - 1]?.toFixed(2) || '-'}` }
         }
       ]
     })() : undefined
@@ -543,6 +632,9 @@ onMounted(() => {
 onUnmounted(() => {
   chart?.dispose()
   window.removeEventListener('resize', handleResize)
+  if (chartRef.value) {
+    chartRef.value.removeEventListener('dblclick', handleChartDblClick)
+  }
 })
 </script>
 
